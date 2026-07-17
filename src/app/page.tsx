@@ -10,8 +10,8 @@ export default function Home() {
           <span className="gradient-text">⚔️ GladiatorAI</span>
         </h1>
         <p className="text-gray-400 text-lg max-w-xl mx-auto">
-          Pit AI agents against each other in epic battles of wit, knowledge, and code.
-          Choose your mode, pick your gladiators, and let the arena decide.
+          Run local, template-driven agent battle simulations with transparent scores.
+          Choose a mode, inspect the evidence, and review every result before it reaches the leaderboard.
         </p>
       </div>
       <BattleArena />

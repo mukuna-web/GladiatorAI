@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Agent, BattleMode, BattleMessage, BattleScore } from "@/lib/types";
+import { useState, useCallback, useRef } from "react";
+import { Agent, BattleAssessment, BattleMode, BattleMessage, BattleScore } from "@/lib/types";
 import { AGENTS, getRandomAgents } from "@/lib/agents";
 import { getRandomDebateTopic, getRandomTriviaQuestions, getRandomCodingChallenge } from "@/lib/topics";
 import {
@@ -11,6 +11,7 @@ import {
   simulateThinkingDelay,
 } from "@/lib/mock-engine";
 import { judgeDebate, judgeTrivia, judgeCoding, getWinner, updateLeaderboard } from "@/lib/judge";
+import { assessBattle, reviewBattleAssessment } from "@/lib/assessment";
 import AgentCard from "./AgentCard";
 import JudgePanel from "./JudgePanel";
 import ModeSelector from "./ModeSelector";
@@ -28,6 +29,9 @@ export default function BattleArena() {
   const [verdict, setVerdict] = useState<string>("");
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [battleInfo, setBattleInfo] = useState<string>("");
+  const [assessment, setAssessment] = useState<BattleAssessment | null>(null);
+  const [leaderboardRecorded, setLeaderboardRecorded] = useState(false);
+  const reviewLockedRef = useRef(false);
 
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -97,7 +101,7 @@ export default function BattleArena() {
     }
 
     const battleScore = judgeDebate(a, b);
-    finishBattle(battleScore, a, b);
+    finishBattle(battleScore, a, b, allMessages.length, "debate");
   }
 
   async function runTrivia(a: Agent, b: Agent) {
@@ -152,7 +156,7 @@ export default function BattleArena() {
     }
 
     const battleScore = judgeTrivia(aCorrect, bCorrect, 5);
-    finishBattle(battleScore, a, b);
+    finishBattle(battleScore, a, b, questions.length, "trivia");
   }
 
   async function runCoding(a: Agent, b: Agent) {
@@ -200,16 +204,43 @@ export default function BattleArena() {
     setThinking(null);
 
     const battleScore = judgeCoding(a, b, solA.quality, solB.quality);
-    finishBattle(battleScore, a, b);
+    finishBattle(battleScore, a, b, allMessages.length, "coding");
   }
 
-  function finishBattle(battleScore: BattleScore, a: Agent, b: Agent) {
-    const result = getWinner(battleScore, a, b);
+  function finishBattle(
+    battleScore: BattleScore,
+    a: Agent,
+    b: Agent,
+    evidenceCount: number,
+    battleMode: BattleMode,
+  ) {
+    const report = assessBattle(battleScore, evidenceCount, 2, battleMode);
+    const result = report.status === "ready"
+      ? getWinner(battleScore, a, b)
+      : { winnerId: null, verdict: report.reason ?? "Insufficient evidence" };
     setScore(battleScore);
+    setAssessment(report);
     setVerdict(result.verdict);
     setWinnerId(result.winnerId);
-    updateLeaderboard(result.winnerId, a.id, b.id, battleScore);
+    setLeaderboardRecorded(false);
+    reviewLockedRef.current = false;
     setPhase("results");
+  }
+
+  function handleReview(reviewer: string, decision: "approved" | "changes_requested") {
+    if (!assessment || !agentA || !agentB || !score || reviewLockedRef.current) return;
+    reviewLockedRef.current = true;
+    try {
+      const reviewed = reviewBattleAssessment(assessment, { reviewer, decision });
+      if (decision === "approved" && !leaderboardRecorded) {
+        updateLeaderboard(winnerId, agentA.id, agentB.id, score);
+        setLeaderboardRecorded(true);
+      }
+      setAssessment(reviewed);
+    } catch (error) {
+      reviewLockedRef.current = false;
+      alert(error instanceof Error ? error.message : "Unable to record review");
+    }
   }
 
   function resetBattle() {
@@ -223,6 +254,9 @@ export default function BattleArena() {
     setWinnerId(null);
     setBattleInfo("");
     setThinking(null);
+    setAssessment(null);
+    setLeaderboardRecorded(false);
+    reviewLockedRef.current = false;
   }
 
   return (
@@ -376,7 +410,7 @@ export default function BattleArena() {
           </div>
 
           {/* Results */}
-          {phase === "results" && score && (
+          {phase === "results" && score && assessment && (
             <div className="space-y-4">
               <JudgePanel
                 agentA={agentA}
@@ -384,6 +418,8 @@ export default function BattleArena() {
                 score={score}
                 verdict={verdict}
                 winnerId={winnerId}
+                assessment={assessment}
+                onReview={handleReview}
               />
               <div className="flex justify-center gap-4">
                 <button

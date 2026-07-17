@@ -9,7 +9,7 @@ interface ModeSelectorProps {
 
 const MODES: { mode: BattleMode; label: string; emoji: string; desc: string }[] = [
   { mode: "debate", label: "Debate", emoji: "🎙️", desc: "Agents argue for & against a topic. Judged on persuasiveness, logic, and rebuttal." },
-  { mode: "trivia", label: "Trivia", emoji: "🧩", desc: "5 rapid-fire questions. Both agents answer simultaneously. Speed & accuracy matter." },
+  { mode: "trivia", label: "Trivia", emoji: "🧩", desc: "Five questions answered by both agents, with the result determined by answer accuracy." },
   { mode: "coding", label: "Coding", emoji: "💻", desc: "A coding challenge is presented. Agents produce solutions judged on correctness & efficiency." },
 ];
 

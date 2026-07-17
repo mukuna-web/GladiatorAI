@@ -1,6 +1,8 @@
 "use client";
 
-import { Agent, BattleScore } from "@/lib/types";
+import { useState } from "react";
+
+import { Agent, BattleAssessment, BattleScore } from "@/lib/types";
 
 interface JudgePanelProps {
   agentA: Agent;
@@ -8,9 +10,12 @@ interface JudgePanelProps {
   score: BattleScore;
   verdict: string;
   winnerId: string | null;
+  assessment: BattleAssessment;
+  onReview: (reviewer: string, decision: "approved" | "changes_requested") => void;
 }
 
-export default function JudgePanel({ agentA, agentB, score, verdict, winnerId }: JudgePanelProps) {
+export default function JudgePanel({ agentA, agentB, score, verdict, winnerId, assessment, onReview }: JudgePanelProps) {
+  const [reviewer, setReviewer] = useState("");
   return (
     <div className="rounded-xl border border-arena-border bg-arena-card p-6 animate-slide-up">
       <div className="text-center mb-6">
@@ -30,13 +35,19 @@ export default function JudgePanel({ agentA, agentB, score, verdict, winnerId }:
               <div className="flex-1 bg-gray-800 rounded-full overflow-hidden flex justify-end">
                 <div
                   className="h-full rounded-full transition-all duration-1000"
-                  style={{ width: `${item.agentA}%`, backgroundColor: agentA.color }}
+                  style={{
+                    width: `${Math.min(100, (item.agentA / (item.maxValue ?? 100)) * 100)}%`,
+                    backgroundColor: agentA.color,
+                  }}
                 />
               </div>
               <div className="flex-1 bg-gray-800 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-1000"
-                  style={{ width: `${item.agentB}%`, backgroundColor: agentB.color }}
+                  style={{
+                    width: `${Math.min(100, (item.agentB / (item.maxValue ?? 100)) * 100)}%`,
+                    backgroundColor: agentB.color,
+                  }}
                 />
               </div>
             </div>
@@ -62,6 +73,42 @@ export default function JudgePanel({ agentA, agentB, score, verdict, winnerId }:
           </div>
           <div className="text-xs text-gray-500">{agentB.name}</div>
         </div>
+      </div>
+
+      <div className="mt-6 border-t border-arena-border pt-4">
+        <div className="text-xs text-gray-400 mb-1">{assessment.reason ?? assessment.explanation}</div>
+        <div className="text-xs text-gray-500 mb-3">
+          Evidence: {assessment.evidenceCount}/{assessment.minimumEvidence} minimum · Review: {assessment.reviewStatus}
+        </div>
+        {assessment.status === "ready" && assessment.reviewStatus === "needs_review" && (
+          <div className="flex flex-wrap gap-2">
+            <input
+              value={reviewer}
+              onChange={(event) => setReviewer(event.target.value)}
+              placeholder="Reviewer name"
+              className="flex-1 min-w-40 rounded-lg border border-arena-border bg-black/30 px-3 py-2 text-xs text-white"
+            />
+            <button onClick={() => onReview(reviewer, "approved")} className="rounded-lg bg-green-500/10 px-3 py-2 text-xs text-green-400">
+              Approve result
+            </button>
+            <button onClick={() => onReview(reviewer, "changes_requested")} className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+              Flag correction
+            </button>
+            <button onClick={() => window.print()} className="rounded-lg bg-purple-500/10 px-3 py-2 text-xs text-purple-300">
+              Print / PDF
+            </button>
+          </div>
+        )}
+        {assessment.status === "ready" && assessment.reviewStatus !== "needs_review" && assessment.review && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex-1 text-xs text-gray-400">
+              Decision recorded by {assessment.review.reviewer}: {assessment.review.decision.replace("_", " ")}
+            </div>
+            <button onClick={() => window.print()} className="rounded-lg bg-purple-500/10 px-3 py-2 text-xs text-purple-300">
+              Print / PDF
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

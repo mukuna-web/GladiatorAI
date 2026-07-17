@@ -1,7 +1,13 @@
 import { Agent, BattleMode, BattleScore } from "./types";
 
-function randomScore(base: number, variance: number): number {
-  return Math.max(0, Math.min(100, Math.round(base + (Math.random() - 0.5) * variance)));
+function stableScore(key: string, base: number, variance: number): number {
+  let hash = 2166136261;
+  for (let index = 0; index < key.length; index++) {
+    hash ^= key.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  const unit = (hash >>> 0) / 0xffffffff;
+  return Math.max(0, Math.min(100, Math.round(base + (unit - 0.5) * variance)));
 }
 
 export function judgeDebate(
@@ -16,8 +22,8 @@ export function judgeDebate(
   const categories = ["Persuasiveness", "Logic & Reasoning", "Rebuttal Quality"];
   const breakdown = categories.map((category) => ({
     category,
-    agentA: randomScore(aBase, 20),
-    agentB: randomScore(bBase, 20),
+    agentA: stableScore(`${agentA.id}:debate:${category}`, aBase, 20),
+    agentB: stableScore(`${agentB.id}:debate:${category}`, bBase, 20),
   }));
 
   return {
@@ -32,16 +38,20 @@ export function judgeTrivia(
   agentBCorrect: number,
   totalQuestions: number
 ): BattleScore {
-  const aScore = Math.round((agentACorrect / totalQuestions) * 100);
-  const bScore = Math.round((agentBCorrect / totalQuestions) * 100);
+  const aScore = totalQuestions > 0 ? Math.round((agentACorrect / totalQuestions) * 100) : 0;
+  const bScore = totalQuestions > 0 ? Math.round((agentBCorrect / totalQuestions) * 100) : 0;
 
   return {
     agentAScore: aScore,
     agentBScore: bScore,
     breakdown: [
-      { category: "Correct Answers", agentA: agentACorrect, agentB: agentBCorrect },
-      { category: "Accuracy %", agentA: aScore, agentB: bScore },
-      { category: "Speed Bonus", agentA: randomScore(75, 30), agentB: randomScore(75, 30) },
+      {
+        category: "Correct Answers",
+        agentA: agentACorrect,
+        agentB: agentBCorrect,
+        maxValue: Math.max(totalQuestions, 1),
+      },
+      { category: "Accuracy %", agentA: aScore, agentB: bScore, maxValue: 100 },
     ],
   };
 }
@@ -52,12 +62,12 @@ export function judgeCoding(
   qualityA: "optimal" | "suboptimal",
   qualityB: "optimal" | "suboptimal"
 ): BattleScore {
-  const correctnessA = qualityA === "optimal" ? randomScore(92, 10) : randomScore(70, 15);
-  const correctnessB = qualityB === "optimal" ? randomScore(92, 10) : randomScore(70, 15);
-  const efficiencyA = qualityA === "optimal" ? randomScore(90, 10) : randomScore(55, 20);
-  const efficiencyB = qualityB === "optimal" ? randomScore(90, 10) : randomScore(55, 20);
-  const codeQualityA = agentA.strengths.includes("coding") ? randomScore(85, 15) : randomScore(65, 20);
-  const codeQualityB = agentB.strengths.includes("coding") ? randomScore(85, 15) : randomScore(65, 20);
+  const correctnessA = stableScore(`${agentA.id}:coding:${qualityA}:correctness`, qualityA === "optimal" ? 92 : 70, qualityA === "optimal" ? 10 : 15);
+  const correctnessB = stableScore(`${agentB.id}:coding:${qualityB}:correctness`, qualityB === "optimal" ? 92 : 70, qualityB === "optimal" ? 10 : 15);
+  const efficiencyA = stableScore(`${agentA.id}:coding:${qualityA}:efficiency`, qualityA === "optimal" ? 90 : 55, qualityA === "optimal" ? 10 : 20);
+  const efficiencyB = stableScore(`${agentB.id}:coding:${qualityB}:efficiency`, qualityB === "optimal" ? 90 : 55, qualityB === "optimal" ? 10 : 20);
+  const codeQualityA = stableScore(`${agentA.id}:coding:${qualityA}:quality`, agentA.strengths.includes("coding") ? 85 : 65, agentA.strengths.includes("coding") ? 15 : 20);
+  const codeQualityB = stableScore(`${agentB.id}:coding:${qualityB}:quality`, agentB.strengths.includes("coding") ? 85 : 65, agentB.strengths.includes("coding") ? 15 : 20);
 
   const breakdown = [
     { category: "Correctness", agentA: correctnessA, agentB: correctnessB },

@@ -2,14 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { AGENTS } from "@/lib/agents";
+import type { LeaderboardEntry } from "@/lib/types";
+import { downloadLeaderboardCsv } from "@/lib/export";
 
-interface LeaderboardData {
-  agentId: string;
-  wins: number;
-  losses: number;
-  draws: number;
-  totalScore: number;
-}
+type LeaderboardData = LeaderboardEntry;
 
 export default function Leaderboard() {
   const [data, setData] = useState<LeaderboardData[]>([]);
@@ -69,12 +65,16 @@ export default function Leaderboard() {
             Sort by Score
           </button>
         </div>
-        <button
-          onClick={resetLeaderboard}
-          className="px-3 py-1.5 rounded-lg text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
-        >
-          Reset
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => downloadLeaderboardCsv(sorted)} className="px-3 py-1.5 rounded-lg text-sm bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all">Export CSV</button>
+          <button onClick={() => window.print()} className="px-3 py-1.5 rounded-lg text-sm bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition-all">Print / PDF</button>
+          <button
+            onClick={resetLeaderboard}
+            className="px-3 py-1.5 rounded-lg text-sm bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+          >
+            Reset
+          </button>
+        </div>
       </div>
 
       {sorted.length === 0 ? (
